@@ -1,0 +1,144 @@
+(node:32779) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+newman
+
+Lab05 — Хичээлд бүртгүүлэх API
+
+❏ S01 Идэвхтэй, урьдач хангасан оюутан бүртгүүлэхэд 201 OK
+↳ setup: PUT /students/B_S01
+  PUT http://localhost:3000/students/B_S01 [200 OK, 178B, 29ms]
+
+↳ setup: PUT /courses/CS313_S01
+  PUT http://localhost:3000/courses/CS313_S01 [200 OK, 178B, 2ms]
+
+↳ POST /registrations
+  POST http://localhost:3000/registrations [201 Created, 202B, 2ms]
+  ✓  Статус 201
+  ✓  result = OK
+  ✓  registrationID нь эерэг тоо
+
+❏ S02 Байхгүй оюутан бүртгүүлэхэд ERROR_NO_STUDENT
+↳ setup: PUT /courses/CS313_S02
+  PUT http://localhost:3000/courses/CS313_S02 [200 OK, 178B, 2ms]
+
+↳ POST /registrations
+  POST http://localhost:3000/registrations [200 OK, 192B, 1ms]
+  ✓  Статус 200
+  ✓  result = ERROR_NO_STUDENT
+
+❏ S03 Идэвхгүй оюутан бүртгүүлэхэд ERROR_INACTIVE_STUDENT
+↳ setup: PUT /students/B_S03
+  PUT http://localhost:3000/students/B_S03 [200 OK, 178B, 1ms]
+
+↳ setup: PUT /courses/CS313_S03
+  PUT http://localhost:3000/courses/CS313_S03 [200 OK, 178B, 1ms]
+
+↳ POST /registrations
+  POST http://localhost:3000/registrations [200 OK, 198B, 1ms]
+  ✓  Статус 200
+  ✓  result = ERROR_INACTIVE_STUDENT
+
+❏ S04 Байхгүй хичээлд бүртгүүлэхэд ERROR_NO_COURSE
+↳ setup: PUT /students/B_S04
+  PUT http://localhost:3000/students/B_S04 [200 OK, 178B, 2ms]
+
+↳ POST /registrations
+  POST http://localhost:3000/registrations [200 OK, 191B, 2ms]
+  ✓  Статус 200
+  ✓  result = ERROR_NO_COURSE
+
+❏ S05 Урьдач хичээл огт үзээгүй бол ERROR_PREREQUISITES (missing CS201)
+↳ setup: PUT /students/B_S05
+  PUT http://localhost:3000/students/B_S05 [200 OK, 178B, 1ms]
+
+↳ setup: PUT /courses/CS313_S05
+  PUT http://localhost:3000/courses/CS313_S05 [200 OK, 178B, 1ms]
+
+↳ POST /registrations
+  POST http://localhost:3000/registrations [200 OK, 215B, 1ms]
+  ✓  Статус 200
+  ✓  result = ERROR_PREREQUISITES
+  ✓  missing = [CS201]
+
+❏ S06 Оюутан ч хичээл ч байхгүй бол ERROR_NO_STUDENT (давхар алдаа)
+↳ POST /registrations
+  POST http://localhost:3000/registrations [200 OK, 192B, 1ms]
+  ✓  Статус 200
+  ✓  result = ERROR_NO_STUDENT
+
+❏ S07 Идэвхгүй ба урьдач дутуу бол ERROR_INACTIVE_STUDENT (давхар алдаа)
+↳ setup: PUT /students/B_S07
+  PUT http://localhost:3000/students/B_S07 [200 OK, 178B, 1ms]
+
+↳ setup: PUT /courses/CS313_S07
+  PUT http://localhost:3000/courses/CS313_S07 [200 OK, 178B, 0µs]
+
+↳ POST /registrations
+  POST http://localhost:3000/registrations [200 OK, 198B, 1ms]
+  ✓  Статус 200
+  ✓  result = ERROR_INACTIVE_STUDENT
+
+❏ S08 Урьдачийн зарим нь дутуу бол зөвхөн дутууг (CS202) буцаана
+↳ setup: PUT /students/B_S08
+  PUT http://localhost:3000/students/B_S08 [200 OK, 178B, 0µs]
+
+↳ setup: PUT /courses/CS313_S08
+  PUT http://localhost:3000/courses/CS313_S08 [200 OK, 178B, 1ms]
+
+↳ POST /registrations
+  POST http://localhost:3000/registrations [200 OK, 215B, 1ms]
+  ✓  Статус 200
+  ✓  result = ERROR_PREREQUISITES
+  ✓  missing = [CS202]
+
+❏ S09 Урьдачгүй хичээлд хоосон coursesTaken-тай оюутан 201 OK
+↳ setup: PUT /students/B_S09
+  PUT http://localhost:3000/students/B_S09 [200 OK, 178B, 1ms]
+
+↳ setup: PUT /courses/CS100_S09
+  PUT http://localhost:3000/courses/CS100_S09 [200 OK, 178B, 1ms]
+
+↳ POST /registrations
+  POST http://localhost:3000/registrations [201 Created, 202B, 1ms]
+  ✓  Статус 201
+  ✓  result = OK
+  ✓  registrationID нь тоо
+
+❏ S10 courseID дутуу бол 400 ERROR_BAD_REQUEST
+↳ POST /registrations
+  POST http://localhost:3000/registrations [400 Bad Request, 202B, 1ms]
+  ✓  Статус 400
+  ✓  result = ERROR_BAD_REQUEST
+
+❏ S11 studentID дутуу бол 400 ERROR_BAD_REQUEST
+↳ POST /registrations
+  POST http://localhost:3000/registrations [400 Bad Request, 202B, 1ms]
+  ✓  Статус 400
+  ✓  result = ERROR_BAD_REQUEST
+
+❏ S12 Буруу JSON бол 400 ERROR_BAD_JSON
+↳ POST /registrations
+  POST http://localhost:3000/registrations [400 Bad Request, 199B, 3ms]
+  ✓  Статус 400
+  ✓  result = ERROR_BAD_JSON
+
+┌─────────────────────────┬─────────────────┬─────────────────┐
+│                         │        executed │          failed │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│              iterations │               1 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│                requests │              26 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│            test-scripts │              12 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│      prerequest-scripts │               0 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│              assertions │              28 │               0 │
+├─────────────────────────┴─────────────────┴─────────────────┤
+│ total run duration: 318ms                                   │
+├─────────────────────────────────────────────────────────────┤
+│ total data received: 625B (approx)                          │
+├─────────────────────────────────────────────────────────────┤
+│ average response time: 2ms [min: 1ms, max: 29ms, s.d.: 5ms] │
+└─────────────────────────────────────────────────────────────┘
+exit=0
