@@ -1,0 +1,19 @@
+$ curl -X POST localhost:3000/registrations -H "Content-Type: application/json" -d "null"
+http_code=000
+$ curl localhost:3000/registrations   # дараагийн хүсэлт
+http_code=000
+curl exit=7 (сервер унасан — холболт тасарсан)
+
+--- server.js stderr:
+Бүртгэлийн API: http://localhost:3000
+/Users/altanbaganadavaasuren/Documents/turshult /lab5_4-3_B242270505/server.js:47
+      const { studentID, courseID } = data;
+              ^
+
+TypeError: Cannot destructure property 'studentID' of 'data' as it is null.
+    at IncomingMessage.<anonymous> (/Users/altanbaganadavaasuren/Documents/turshult /lab5_4-3_B242270505/server.js:47:15)
+    at IncomingMessage.emit (node:events:514:28)
+    at endReadableNT (node:internal/streams/readable:1764:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+
+Node.js v24.21.0

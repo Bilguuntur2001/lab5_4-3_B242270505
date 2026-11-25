@@ -66,3 +66,62 @@ $ newman -v
 | S12 | Хязгаар | E2 (буруу JSON) | **400** | `ERROR_BAD_JSON` |
 
 Давхар алдааны үед аль хариу буцахыг зааварт тусгаагүй. Тиймээс S06 болон S07-оор шалгах дарааллыг тогтоосон: оюутан → идэвхтэй эсэх → хичээл → урьдач нөхцөл.
+
+### 5. Бодит тест кейс: Postman collection
+
+- [lab05-collection.json](lab05-collection.json) нь Postman Collection v2.1 формат. Postman-д **File → Import**-оор шууд нээгдэнэ.
+- Collection-ийг [tools/build-collection.js](tools/build-collection.js) скриптээр спецификацийн хүснэгтээс үүсгэсэн. Ингэснээр README ба collection нэг эх сурвалжтай болно.
+- `{{baseUrl}}` collection variable = `http://localhost:3000`.
+- 12 спецификаци = **12 folder**. Folder бүр өөрийн setup-ыг (`PUT /students`, `PUT /courses`) өөрөө хийгээд `POST /registrations` ажиллуулна. Сүүлд нь oracle-уудыг шалгана: **статус** ба **`result`**, мөн шаардлагатай газар `missing`/`registrationID`.
+- Тест бүр өвөрмөц ID ашигладаг (`B_S01`, `CS313_S01`…). Тиймээс тестүүд дарааллаас үл хамаарч, давтан ажиллуулахад ч аюулгүй.
+- `registrationID`-ийн яг утгыг шалгаагүй. Зөвхөн эерэг тоо эсэхийг шалгасан, учир нь сервер in-memory бөгөөд дугаар хуримтлагддаг.
+
+## Newman үр дүн
+
+| Ажиллуулалт | Файл | requests | **assertions executed / failed** | Exit code |
+|---|---|---|---|---|
+| PASS: `newman run lab05-collection.json` | [newman-pass.txt](results/newman-pass.txt) | 26 / 0 | **28 / 0** | **0** |
+| FAIL: `newman run lab05-collection-fail.json` | [newman-fail.txt](results/newman-fail.txt) | 26 / 0 | **28 / 1** | **1** |
+| DOWN: сервер унтарсан үед `lab05-collection.json` | [newman-down.txt](results/newman-down.txt) | 26 / **26** | 28 / 28 | **1** |
+| Даалгавар 5: [public-api-collection.json](public-api-collection.json) | [newman-public.txt](results/newman-public.txt) | 1 / 0 | 3 / 0 | 0 |
+
+**Тестийн тоо:** 12 тест кейс (folder), **28 assertion**. Энэ нь `newman-pass.txt`-ийн `assertions` мөрийн executed тоо. 12 тест бүр статус ба `result` гэсэн 2 oracle-той (24), дээр нь S01 `registrationID`, S05 болон S08 `missing`, S09 `registrationID` гэсэн 4 нэмэлт oracle бий.
+
+- **FAIL:** [lab05-collection-fail.json](lab05-collection-fail.json)-д зөвхөн S01-ийн статус oracle-ыг `201`-ээс `200` болгосон. Newman `AssertionError Статус 200 — expected response to have status code 200 but got 201` гэж мэдээлж, exit 1 буцаасан. CI pipeline 0 биш exit code-оор build-ийг зогсоодог (quality gate).
+- **DOWN:** 26 хүсэлт бүгд `connect ECONNREFUSED 127.0.0.1:3000` алдаатай болж, exit 1 гарсан. Энэ бол **интерфейсийн алдаа**: хүсэлт серверт хүрээгүй тул хариу огт байхгүй. Харин **oracle-ийн алдаа** гэдэг нь сервер хариулсан ч хариу хүлээгдэж буй үр дүнтэй таараагүй тохиолдол (FAIL ажиллуулалт шиг). DOWN үед 28 assertion-ыг Newman "failed" гэж тоолсон ч бодит шалтгаан нь холболт юм.
+- **Нийтийн API:** `GET /users` дээр гурван oracle шалгасан: статус 200, хариу нь массив, эхний хэрэглэгч нь "Leanne Graham". Энэ API GET-only бөгөөд setup шаардахгүй тул хялбар. Гэхдээ өгөгдлийг нь бид удирдаж чадахгүй тул oracle маань гадны өгөгдөл өөрчлөгдвөл унах эрсдэлтэй. Бидний локал API дээр харин төлөвийг өөрсдөө тавьдаг.
+
+## Олдсон согог: `null` body серверийг унагадаг
+
+Collection-оос гадуур нэмэлт хязгаарын тохиолдол шалгасан: body нь хүчинтэй JSON бөгөөд утга нь `null`. Нотолгоо: [results/defect-null-body.txt](results/defect-null-body.txt).
+
+```
+$ curl -X POST localhost:3000/registrations -H "Content-Type: application/json" -d "null"
+http_code=000
+...
+TypeError: Cannot destructure property 'studentID' of 'data' as it is null.
+    at IncomingMessage.<anonymous> (.../server.js:47:15)
+```
+
+`JSON.parse("null")` нь алдаагүйгээр `null` буцаадаг. Дараа нь `const { studentID, courseID } = data` мөр exception шидэж, **серверийн процесс бүхэлдээ унадаг**: дараагийн хүсэлт `curl exit=7` (холболтгүй). Хүлээгдэж буй хариу нь `400 ERROR_BAD_REQUEST` юм. Зөвхөн нэг муу хүсэлтээр бүх хэрэглэгчийн үйлчилгээг зогсоож болох тул энэ нь availability-ийн согог (DoS эрсдэл). Засах арга: `if (!data || typeof data !== 'object') return send(res, 400, {result:'ERROR_BAD_REQUEST'})`.
+
+Энэ тохиолдлыг collection-д оруулаагүй. Учир нь сервер унавал түүний араас ажиллах бүх тест ECONNREFUSED болж, тест хоорондын бие даасан байдал алдагдана.
+
+## Дүгнэлт
+
+Дизайны 5 алхмаас **сонголтуудыг эквивалент ангид хуваах** (2–3-р алхам) хамгийн их бодол шаардсан. "Урьдач нөхцөл" гэсэн нэг сонголт нь үнэндээ хоёр зүйлийн хамаарал: хичээлийн prereq ба оюутны үзсэн хичээлүүд. Тиймээс "бүгд / огт / зарим нь / урьдачгүй" гэсэн 4 ангийг харьцуулалт дээр тодорхойлох хэрэгтэй болсон. Боломжгүй хослолууд ч тодорхой гарсан: байхгүй оюутны "үзсэн хичээл", байхгүй хичээлийн "урьдач нөхцөл" гэж байхгүй. Мөн 400-ийн ангиуд (талбар дутуу, буруу JSON) бусад бүх сонголтыг "дардаг" тул тэдгээрийг нэг нэг тестээр л төлөөлүүлсэн. Зааварт тодорхойлоогүй давхар алдааны дарааллыг S06, S07 тестүүд тогтоосон: оюутан → идэвхтэй эсэх → хичээл → урьдач нөхцөл. Энэ нь кодын дараалалтай таарч байна. Тест бүрд өвөрмөц ID өгснөөр in-memory серверийн хуримтлагддаг төлөвөөс үл хамаарсан бие даасан тестүүд болсон. Collection-ийн 12 тест (28 assertion) бүгд PASS болсон тул тодорхойлолтод заасан үйлдлүүдэд согог илрээгүй. Гэхдээ хязгаарын утгыг цааш "JSON нь хүчинтэй ч объект биш" гэж сунгаж шалгахад `null` body серверийг бүхэлд нь унагадаг ноцтой согог олдсон. FAIL ба DOWN ажиллуулалт хоёулаа exit 1 өгсөн ч шалтгаан нь өөр: нэг нь oracle зөрсөн, нөгөө нь холболт байхгүй. Тиймээс CI-д exit code-оос гадна гаралтын агуулгыг харах хэрэгтэй гэдгийг ойлгосон.
+
+## Нэмэлт: AI өнцөг
+
+Тест дизайн, collection болон тайланг AI туслах (Claude) ашиглан хийсэн. AI `server.js`-ийн кодыг уншаад шалгах дарааллыг олж, давхар алдааны oracle-уудыг (S06, S07) зөв таамагласан. Мөн `null` body-гийн согогийг кодоос нь илрүүлээд бодитоор нотолсон. Гэвч AI эхэндээ энэ согогийн тестийг үндсэн collection-д оруулахаар төлөвлөж байсан. Тэгвэл сервер унаж, араас нь ажиллах тестүүд бүгд ECONNREFUSED болох байсан тул тусад нь нотлохоор шийдсэн. Ингэснээр AI-ийн санал болгосон тест бүрийг тест хоорондын бие даасан байдлын үүднээс шүүх хэрэгтэйг харсан.
+
+## Файлын бүтэц
+
+```
+server.js                     # багшийн API (өөрчлөөгүй)
+lab05-collection.json         # 12 тест, 28 assertion
+lab05-collection-fail.json    # S01 oracle зориуд буруу
+public-api-collection.json    # Даалгавар 5
+tools/build-collection.js     # collection үүсгэгч
+results/newman-{pass,fail,down,public}.txt, defect-null-body.txt
+```
